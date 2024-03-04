@@ -10,7 +10,18 @@ urlcolor: blue
 
 ## Introduction
 
-The goal of this script is to demonstrate methods for microbial growth analysis using the R package growthcurver. The growthcurver package is described in this [publication](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-016-1016-7) and in this [vignette](https://cran.r-project.org/web/packages/growthcurver/vignettes/Growthcurver-vignette.html). The growthcurver package fits the data to a logistic growth model, enabling calculation of a generation time and carrying capacity.
+The goal of this script is to demonstrate methods for microbial growth analysis by calculating a logistic fit using the R package growthcurver. The growthcurver package is described in this [publication](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-016-1016-7) and in this [vignette](https://cran.r-project.org/web/packages/growthcurver/vignettes/Growthcurver-vignette.html). 
+
+The growthcurver package fits the data to a logistic growth model:
+
+n(t) = K / (1 + ( (K - N0) / N0) * exp(-r * t)
+
+* N(t) is the number of cells (or density) at time t,
+* K is the carrying capacity,
+* N0 is the initial cell count or density
+* r is the "growth rate".
+
+Calculation of the logistic fit is performed using non-linear least-squares Levenberg-Marquardt algorithm available in the [minpack.lm R package](https://cran.r-project.org/web/packages/minpack.lm/index.html). The generation time (tg) is then calculated as tg = ln(2)/r.
 
 This analysis shows how to load growth data into growthcurver to calculate growth parameters. The outputs are plots of the growth and logisitic fit for each well (Fig 1), a summary of growth parameters (generation time, carrying capacity) for each treatment (Table 2), and a PCA on growth parameters to identify outlier wells (Fig2).
 
@@ -20,7 +31,8 @@ This analysis shows how to load growth data into growthcurver to calculate growt
 library(growthcurver);
 library(tidyverse);
 library(readxl);
-library(knitr)
+library(knitr);
+library(stats);
 
 mytheme = theme(axis.text.x = element_text(size = 4), 
                 axis.text.y = element_text(size = 4), 
@@ -32,7 +44,7 @@ mytheme = theme(axis.text.x = element_text(size = 4),
                panel.grid.minor=element_blank(), panel.grid.major=element_blank());
 
 # load my growth data
-datafile = "/home/tolonen/Github/actolonen/Microbial_Growth/Growthcurver/2024.02.29_growthData.xlsx";
+datafile = "/home/tolonen/Github/actolonen/Public/Microbial_Growth/Logistic_Fit/2024.02.29_growthData.xlsx";
 growthdata = read_excel(datafile, sheet = "Data", col_names = TRUE, skip=0);
 growthdata = growthdata %>%
   rename(time = Hours) %>% # time col must be called "time"
@@ -41,6 +53,11 @@ growthdata = growthdata %>%
 table1 = kable(growthdata[1:5, 1:10], caption = "Format of input growth data for growthcurver fit. Columns are time (hours) and OD600 of each well");
 
 table1
+
+# convert growth data to tidy format
+growthdatalong = growthdata %>%
+  pivot_longer(cols = A01:F12, names_to = "Well", values_to = "OD600");
+
 ```
 
 ## Calculate logistic fit, combine with growth data
@@ -69,11 +86,6 @@ Well = names(growthdata) %>%
   tail(-1); # remove first elt (time)
 fitdata = data.frame(Well, my_k, my_n0, my_r, my_genTime, my_sigma, my_note);
 
-# convert growth data to tidy format
-growthdatalong = growthdata %>%
-  select(-blank) %>%
-  pivot_longer(cols = A01:F12, names_to = "Well", values_to = "OD600");
-
 # # add fit data to growthdata
 growthdatalong = left_join(growthdatalong, fitdata, by="Well");
  growthdatalong = growthdatalong %>%
@@ -85,7 +97,6 @@ growthdatalong = growthdatalong %>%
   unite("Well", Well, fit_qual, sep = "");
 
 ```
-
 
 ## plot growth and fit data
 ```{r plotting, eval=TRUE, message=FALSE, warning=FALSE}
@@ -110,7 +121,7 @@ growthplots
 # output a growth summary table: Well, Treatment, Generation time, max cell yield.
 
 # load my plate map data
-datafile = "/home/tolonen/Github/actolonen/Microbial_Growth/Growthcurver/2024.02.29_growthData.xlsx";
+datafile = "/home/tolonen/Github/actolonen/Public/Microbial_Growth/Logistic_Fit/2024.02.29_growthData.xlsx";
 platemap = read_excel(datafile, sheet = "informations", col_names = TRUE, skip=30);
 
 summarydata = left_join(fitdata, platemap, by="Well") %>%
