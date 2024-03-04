@@ -1,5 +1,5 @@
 ---
-title: "Microbial growth analysis with the growthcurver R package"
+title: "Microbial growth analysis using a logistic fit (growthcurver R package)"
 author: "Andrew Tolonen"
 date: '2024.02'
 output:
